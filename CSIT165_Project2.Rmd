@@ -1,0 +1,83 @@
+---
+title: "Project 2"
+author: "Team Members: Adrian Missier & Kiyoko Shimizu "
+date: "`r Sys.Date()`"
+output: 
+  pdf_document: default
+  html_document: default
+---
+```{r setup, include = FALSE}
+
+#### Load necessary packages ####
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
+if(!require(tidyverse)){install.packages("tidyverse")}
+if(!require(knitr)){install.packages("knitr")}
+if(!require(leaflet)){install.packages("leaflet")}
+
+library(tidyverse)
+library(knitr)
+library(leaflet)
+```
+
+## Background
+The World Health Organization has recently employed a new data science initiative, *CSIT-165*, that uses data science to characterize pandemic diseases. 
+*CSIT-165* disseminates data driven analyses to global decision makers.
+
+*CSIT-165* is a conglomerate comprised of two fabricated entities: World Health Organization (WHO) and U.S. Pandemic Response Team (USPRT). 
+Each of us will assume a role as a data scientist from one of these two entities.(State our roles here?)
+
+## Data
+> [2019 Novel Coronavirus COVID-19 (2019-nCoV) Data Repository by John Hopkins CSSE](https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series)
+
+Data for 2019 Novel Coronavirus is operated by the John Hopkins University Center for Systems Science and Engineering (JHU CSSE). Data includes daily time series CSV summary tables, including confirmations, recoveries, and deaths. 
+Country/region are countries/regions hat conform to World Health Organization (WHO).
+Lat and Long refer to coordinates references for the user. Date fields are stored in MM/DD/YYYY format.
+
+
+```{r WHO_datasets_download}
+# URLs for global data sets for COVID-19 associated confirmations and deaths 
+  
+
+```
+```{r USPRT_datasets_download}
+# URLs for - US data sets for COVID-19 associated confirmations and deaths 
+
+
+```
+```{r prepare_data}
+
+
+```
+
+## Project Objectives
+
+### Objective 1: Global Map - Covid-19 Confirmations & Deaths
+```{r ob1}
+
+```
+
+### Objective 2: Table of Covid-19 Hot Spots
+```{r ob2}
+
+```
+
+### Objective 3: Covid-19 Confirmations in California
+```{r ob3}
+
+```
+
+### Objective 4: Exploring Relationship between -  Population & Confirmed Counts, Death Counts & Confirmed Counts
+
+
+```{r ob4}
+
+```
+
+
+### GitHub Log
+```{bash gitlog } 
+git log --pretty=format:"%nSubject: %s%nAuthor: %aN%nDate: %aD%nBody: %b"
+```
+[GitHub repository] 
+
+

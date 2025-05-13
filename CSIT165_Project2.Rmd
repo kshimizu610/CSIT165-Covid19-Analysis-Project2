@@ -36,7 +36,22 @@ Lat and Long refer to coordinates references for the user. Date fields are store
 
 ```{r WHO_datasets_download}
 # URLs for global data sets for COVID-19 associated confirmations and deaths 
+deaths_global_url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv"
   
+confirmed_global_url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"
+
+# Create curl command
+deaths_global_command<-paste("curl",deaths_global_url, "-o", "time_series_covid19_deaths_global.csv")
+
+global_command <- paste("curl", confirmed_global_url, "-o", "time_series_covid19_confirmed_global.csv")
+
+# Run the commands
+system(deaths_global_command)
+system(global_command)
+
+# Read data from .csv files
+deaths_global_data <- read.csv("time_series_covid19_deaths_global.csv", stringsAsFactors = FALSE)
+confirmed_global_data <- read.csv("time_series_covid19_confirmed_global.csv", stringsAsFactors= FALSE)  
 
 ```
 ```{r USPRT_datasets_download}
@@ -44,11 +59,33 @@ Lat and Long refer to coordinates references for the user. Date fields are store
 
 
 ```
-```{r prepare_data}
 
+```{r prepare_data}
+# Clean and prepare global data
+clean_global_data <- function(data) {
+  cleaned <- data %>%
+    filter(!is.na(Lat), !is.na(Long), Lat != 0, Long != 0) %>%
+    group_by(`Province.State`, `Country.Region`) %>%
+    summarize(across(where(is.numeric), \(x) sum(x, na.rm = TRUE)), .groups = "drop") %>%
+    ungroup()
+  return(cleaned)
+}
+
+confirmed_global_cleaned <- clean_global_data(confirmed_global_data)
+deaths_global_cleaned <- clean_global_data(deaths_global_data)
+
+# Filter out cruise ships and invalid coordinates based on Lat/Long
+confirmed_global_cleaned <- confirmed_global_cleaned %>%
+  filter(!is.na(Lat), !is.na(Long), Lat != 0, Long != 0)
+  #filter(if_all(where(is.numeric), ~ . >= 0))
+
+deaths_global_cleaned <- deaths_global_cleaned %>%
+  filter(!is.na(Lat), !is.na(Long), Lat != 0, Long != 0)
+  #filter(if_all(where(is.numeric), ~ . >= 0))
+
+# Clean and prepare US data 
 
 ```
-
 ## Project Objectives
 
 ### Objective 1: Global Map - Covid-19 Confirmations & Deaths

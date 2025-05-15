@@ -2,9 +2,7 @@
 title: "Project 2"
 author: "Team Members: Adrian Missier & Kiyoko Shimizu "
 date: "`r Sys.Date()`"
-output: 
-  pdf_document: default
-  html_document: default
+output: html_document
 ---
 ```{r setup, include = FALSE}
 
@@ -42,7 +40,6 @@ confirmed_global_url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-
 
 # Create curl command
 deaths_global_command<-paste("curl",deaths_global_url, "-o", "time_series_covid19_deaths_global.csv")
-
 global_command <- paste("curl", confirmed_global_url, "-o", "time_series_covid19_confirmed_global.csv")
 
 # Run the commands
@@ -55,7 +52,7 @@ confirmed_global_data <- read.csv("time_series_covid19_confirmed_global.csv", st
 
 ```
 ```{r USPRT_datasets_download}
-# URLs for - US data sets for COVID-19 associated confirmations and deaths 
+# URLs for US data sets for COVID-19 associated confirmations and deaths 
 
 
 ```
@@ -64,15 +61,14 @@ confirmed_global_data <- read.csv("time_series_covid19_confirmed_global.csv", st
 # Clean and prepare global data
 clean_global_data <- function(data) {
   cleaned <- data %>%
-    filter(!is.na(Lat), !is.na(Long), Lat != 0, Long != 0) %>%
-    group_by(`Province.State`, `Country.Region`) %>%
-    summarize(across(where(is.numeric), \(x) sum(x, na.rm = TRUE)), .groups = "drop") %>%
-    ungroup()
+    filter(!is.na(Lat), !is.na(Long), Lat != 0, Long != 0) 
   return(cleaned)
 }
 
 confirmed_global_cleaned <- clean_global_data(confirmed_global_data)
 deaths_global_cleaned <- clean_global_data(deaths_global_data)
+
+deaths_global_cleaned[9:19,1:4]
 
 # Filter out cruise ships and invalid coordinates based on Lat/Long
 confirmed_global_cleaned <- confirmed_global_cleaned %>%
@@ -90,11 +86,81 @@ deaths_global_cleaned <- deaths_global_cleaned %>%
 
 ### Objective 1: Global Map - Covid-19 Confirmations & Deaths
 ```{r ob1}
+# Identify the column with last date
+last_date <- names(confirmed_global_cleaned)[ncol(confirmed_global_cleaned)]
 
+# Sum confirmations and deaths of provinces into one value for each country they belong to 
+confirmed_global_summed <- confirmed_global_cleaned %>% 
+  group_by(Country.Region) %>% 
+  summarise(confirmed = sum(.data[[last_date]], na.rm = TRUE),
+            Lat = mean(Lat, na.rm = TRUE),
+            Long = mean(Long, na.rm = TRUE))
+            
+deaths_global_summed <- deaths_global_cleaned %>% 
+  group_by(Country.Region) %>% 
+  summarise(deaths = sum(.data[[last_date]], na.rm = TRUE))
+
+# Join confirmed and deaths data frames
+global_joined <- left_join(confirmed_global_summed, deaths_global_summed, by = "Country.Region")
+
+# Find the first, second and third quartiles
+quartiles_confirmed <- quantile(global_joined$confirmed, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
+quartiles_deaths <- quantile(global_joined$deaths, probs = c(0.25,0.5,0.75), na.rm = TRUE)
+
+# Set colors for quartiles
+global_joined  <- global_joined %>% 
+  mutate(
+    Color_confirmed = case_when(
+    confirmed <= quartiles_confirmed[1] ~ "blue",
+    confirmed <= quartiles_confirmed[2] ~"gray",
+    confirmed <= quartiles_confirmed[3] ~ "red",
+    TRUE ~ "red"
+    ),
+    Color_deaths = case_when(
+      deaths <= quartiles_deaths[1] ~ "blue",
+      deaths <= quartiles_deaths[2] ~"gray",
+      deaths <= quartiles_deaths[3] ~ "red",
+      TRUE ~ "red"
+    )
+  )
+
+# Make map using leaflet
+leaflet(global_joined) %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>% 
+  
+  # Add layer for confirmed cases
+  addCircleMarkers(
+    group = "confirmed",
+    lng =~ Long, lat = ~Lat,
+    radius = ~log1p(confirmed)/2,
+    color = ~Color_confirmed,
+    label = ~`Country.Region`,
+    popup = ~paste0("<b>Country:</b> ", `Country.Region`, "<br>",
+                   "<b>Confirmations:</b> ", confirmed),
+    stroke = FALSE, fillOpacity = 0.7
+  ) %>% 
+  
+  # Add layer for deaths
+  addCircleMarkers(
+    group = "deaths",
+    lng = ~Long, lat = ~Lat,
+    radius = ~log1p(deaths)/2,
+    color = ~Color_deaths,
+    label = ~`Country.Region`,
+    popup = ~paste0("<b>Country:</b> ", `Country.Region`, "<br>",
+                   "<b>Deaths:</b> ", deaths),
+    stroke = FALSE,fillOpacity = 0.7
+  ) %>%
+  
+  # Add checkboxes
+  addLayersControl(
+    overlayGroups = c("Confirmed","Deaths"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
 ```
-
 ### Objective 2: Table of Covid-19 Hot Spots
 ```{r ob2}
+
 
 ```
 

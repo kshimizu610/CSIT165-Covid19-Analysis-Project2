@@ -68,8 +68,6 @@ clean_global_data <- function(data) {
 confirmed_global_cleaned <- clean_global_data(confirmed_global_data)
 deaths_global_cleaned <- clean_global_data(deaths_global_data)
 
-deaths_global_cleaned[9:19,1:4]
-
 # Filter out cruise ships and invalid coordinates based on Lat/Long
 confirmed_global_cleaned <- confirmed_global_cleaned %>%
   filter(!is.na(Lat), !is.na(Long), Lat != 0, Long != 0)

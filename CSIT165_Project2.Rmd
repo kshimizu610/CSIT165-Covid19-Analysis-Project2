@@ -124,10 +124,11 @@ global_joined  <- global_joined %>%
 
 # Make map using leaflet
 leaflet(global_joined) %>% 
-  addProviderTiles(providers$CartoDB.Positron) %>% 
+  addProviderTiles(providers$CartoDB.Positron, group = "Base Map") %>% 
   
   # Add layer for confirmed cases
   addCircleMarkers(
+    data = global_joined,
     group = "confirmed",
     lng =~ Long, lat = ~Lat,
     radius = ~log1p(confirmed)/2,
@@ -140,6 +141,7 @@ leaflet(global_joined) %>%
   
   # Add layer for deaths
   addCircleMarkers(
+    data = global_joined,
     group = "deaths",
     lng = ~Long, lat = ~Lat,
     radius = ~log1p(deaths)/2,
@@ -152,9 +154,10 @@ leaflet(global_joined) %>%
   
   # Add checkboxes
   addLayersControl(
-    overlayGroups = c("Confirmed","Deaths"),
+    overlayGroups = c("confirmed","deaths"),
     options = layersControlOptions(collapsed = FALSE)
-  )
+  ) %>% 
+  hideGroup("deaths")
 ```
 ### Objective 2: Table of Covid-19 Hot Spots
 ```{r ob2}

@@ -139,8 +139,9 @@ leaflet(global_joined) %>%
     color = ~Color_confirmed,
     label = ~`Country.Region`,
     popup = ~paste0("<b>Country:</b> ", `Country.Region`, "<br>",
-                   "<b>Confirmations:</b> ", confirmed),
-    stroke = FALSE, fillOpacity = 0.7
+                   "<br><b>Confirmations:</b> ", confirmed,
+                   "<br><b>Deaths:</b> ",deaths),
+    stroke = FALSE, fillOpacity = 0.6
   ) %>% 
   
   # Add layer for deaths
@@ -153,7 +154,7 @@ leaflet(global_joined) %>%
     label = ~`Country.Region`,
     popup = ~paste0("<b>Country:</b> ", `Country.Region`, "<br>",
                    "<b>Deaths:</b> ", deaths),
-    stroke = FALSE,fillOpacity = 0.7
+    stroke = FALSE,fillOpacity = 0.6
   ) %>%
   
   # Add checkboxes

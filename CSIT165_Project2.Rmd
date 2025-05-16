@@ -10,11 +10,15 @@ output: html_document
 options(repos = c(CRAN = "https://cloud.r-project.org/"))
 if(!require(tidyverse)){install.packages("tidyverse")}
 if(!require(knitr)){install.packages("knitr")}
+if(!require(kableExtra)){install.packages("kableExtra")}
 if(!require(leaflet)){install.packages("leaflet")}
+if(!require(DT)){install.packages("DT")}
 
 library(tidyverse)
 library(knitr)
+library(kableExtra)
 library(leaflet)
+library(DT)
 ```
 
 ## Background
@@ -159,10 +163,39 @@ leaflet(global_joined) %>%
   ) %>% 
   hideGroup("deaths")
 ```
-### Objective 2: Table of Covid-19 Hot Spots
+### Objective 2: Table with Top 25 Countries by Confirmations and Deaths
 ```{r ob2}
+# Identify top 25 countries for confirmations
+confirmed_top <- global_joined %>% 
+  arrange(desc(confirmed)) %>% 
+  slice(1:25) %>% 
+  select(Country = `Country.Region`, Count = confirmed)
 
+# Identify top 25 countries for deaths
+deaths_top <- global_joined %>% 
+  arrange(desc(deaths)) %>% 
+  slice(1:25) %>% 
+  select(Country = `Country.Region`, Count = deaths)
 
+# Combine confirmed_top and deaths_top tables and add new column for rank number
+table_ranked <- tibble(
+  Rank = 1:25,
+  country_confirmed = confirmed_top$Country,
+  country_count = confirmed_top$Count,
+  country_deaths = deaths_top$Country,
+  count_deaths = deaths_top$Count
+)
+
+# Rename columns for table_ranked table
+colnames(table_ranked) <- c("Rank", "Country", "Count", "Country", "Count")
+
+# Display new table 
+table_ranked %>% 
+  kable(caption = "Top 25 Countries by Confirmed Cases and Deaths",
+        col.names = c("Rank", "Country", "Count", "Country", "Count")) %>% 
+  kableExtra::add_header_above(c(" " = 1, "Confirmations" = 2, "Deaths" = 2)) %>% 
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+  
 ```
 
 ### Objective 3: Covid-19 Confirmations in California

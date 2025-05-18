@@ -1,6 +1,6 @@
 ---
 title: "Project 2"
-author: "Team Members: Adrian Missier & Kiyoko Shimizu "
+author: "Team Members: Adrian Missier (USPRT) & Kiyoko Shimizu (WHO) "
 date: "`r Sys.Date()`"
 output: html_document
 ---
@@ -13,12 +13,14 @@ if(!require(knitr)){install.packages("knitr")}
 if(!require(kableExtra)){install.packages("kableExtra")}
 if(!require(leaflet)){install.packages("leaflet")}
 if(!require(DT)){install.packages("DT")}
+if(!require(cowplot)){install.packages("cowplot")}
 
 library(tidyverse)
 library(knitr)
 library(kableExtra)
 library(leaflet)
 library(DT)
+library(cowplot)
 ```
 
 ## Background
@@ -26,7 +28,9 @@ The World Health Organization has recently employed a new data science initiativ
 *CSIT-165* disseminates data driven analyses to global decision makers.
 
 *CSIT-165* is a conglomerate comprised of two fabricated entities: World Health Organization (WHO) and U.S. Pandemic Response Team (USPRT). 
-Each of us will assume a role as a data scientist from one of these two entities.(State our roles here?)
+We have been assigned the role of data scientist for the entities as follows:
+Adrian Missier - USPRT;
+Kiyoko Shimizu - WHO
 
 ## Data
 > [2019 Novel Coronavirus COVID-19 (2019-nCoV) Data Repository by John Hopkins CSSE](https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series)
@@ -34,7 +38,6 @@ Each of us will assume a role as a data scientist from one of these two entities
 Data for 2019 Novel Coronavirus is operated by the John Hopkins University Center for Systems Science and Engineering (JHU CSSE). Data includes daily time series CSV summary tables, including confirmations, recoveries, and deaths. 
 Country/region are countries/regions hat conform to World Health Organization (WHO).
 Lat and Long refer to coordinates references for the user. Date fields are stored in MM/DD/YYYY format.
-
 
 ```{r WHO_datasets_download}
 # URLs for global data sets for COVID-19 associated confirmations and deaths 
@@ -53,14 +56,25 @@ system(global_command)
 # Read data from .csv files
 deaths_global_data <- read.csv("time_series_covid19_deaths_global.csv", stringsAsFactors = FALSE)
 confirmed_global_data <- read.csv("time_series_covid19_confirmed_global.csv", stringsAsFactors= FALSE)  
-
 ```
 ```{r USPRT_datasets_download}
 # URLs for US data sets for COVID-19 associated confirmations and deaths 
+confirmed_us_url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv"
 
+deaths_us_url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv"
 
+# Create curl command
+deaths_us_command <- paste("curl", deaths_us_url, "-o", "time_series_covid19_deaths_US.csv")
+us_command <- paste("curl", confirmed_us_url, "-o", "time_series_covid19_confirmed_US.csv")
+
+# Run the commands
+system(deaths_us_command)
+system(us_command)
+
+# Read data from .csv files
+confirmed_us_data <- read.csv("time_series_covid19_confirmed_US.csv", stringsAsFactors= FALSE)
+deaths_us_data <- read.csv("time_series_covid19_deaths_US.csv", stringsAsFactors = FALSE)
 ```
-
 ```{r prepare_data}
 # Clean and prepare global data
 clean_global_data <- function(data) {
@@ -80,9 +94,6 @@ confirmed_global_cleaned <- confirmed_global_cleaned %>%
 deaths_global_cleaned <- deaths_global_cleaned %>%
   filter(!is.na(Lat), !is.na(Long), Lat != 0, Long != 0)
   #filter(if_all(where(is.numeric), ~ . >= 0))
-
-# Clean and prepare US data 
-
 ```
 ## Project Objectives
 
@@ -123,7 +134,6 @@ global_joined  <- global_joined %>%
       deaths <= quartiles_deaths[3] ~ "red",
     )
   )
-
 # Make map using leaflet
 leaflet(global_joined) %>% 
   addProviderTiles(providers$CartoDB.Positron) %>% 
@@ -195,26 +205,228 @@ table_ranked %>%
         col.names = c("Rank", "Country", "Count", "Country", "Count")) %>% 
   kableExtra::add_header_above(c(" " = 1, "Confirmations" = 2, "Deaths" = 2)) %>% 
   kableExtra::kable_styling(bootstrap_options = c("condensed"))
-  
 ```
-
 ### Objective 3: Covid-19 Confirmations in California
 ```{r ob3}
+library(lubridate)
+library(cowplot)
 
+# Filter to get California
+ca_confirmed <- confirmed_us_data %>%
+  filter(Province_State == "California")
+
+latest_date <- names(ca_confirmed)[ncol(ca_confirmed)]
+
+# Get top 3 counties in California with the most confirmed cases
+top_3_counties <- ca_confirmed %>%
+  select(Admin2, all_of(latest_date)) %>%
+  arrange(desc(.data[[latest_date]])) %>%
+  slice_head(n = 3) %>%
+  pull(Admin2)
+
+# Build a Confirmed Case Trend Line in California
+ca_total <- ca_confirmed %>%
+  select(matches("^X\\d")) %>%
+  summarise(across(everything(), sum)) %>%
+  pivot_longer(cols = everything(), names_to = "Date", values_to = "Cases") %>%
+  mutate(Date = mdy(str_remove(Date, "^X")))
+
+# Convert the top 3 counties into long form data
+top_cities <- ca_confirmed %>%
+  filter(Admin2 %in% top_3_counties) %>%
+  select(Admin2, matches("^X\\d")) %>%
+  pivot_longer(cols = matches("^X\\d"), names_to = "Date", values_to = "Cases") %>%
+  mutate(Date = mdy(str_remove(Date, "^X")))
+
+# Important dates on timeline
+milestones <- tibble(
+  label = c("SAH Order", "EUA", "+6 weeks", "Delta", "Omicron"),
+  date = mdy(c("03-19-2020", "01-29-2021", "03-12-2021", "05-11-2021", "11-26-2021"))
+)
+
+# 1st graph with total confirmations for California
+plot_ca <- ggplot(ca_total, aes(x = Date, y = Cases)) +
+  geom_line(color = "darkblue", linewidth = 1) +
+  labs(
+    title = "COVID-19 Confirmations in California",
+    x = "Date", y = "Confirmations"
+  ) +
+  scale_x_date(date_breaks = "6 months", date_labels = "%b\n%Y") +
+  theme_minimal(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.5)) +
+  geom_vline(data = milestones,
+             aes(xintercept = date, color = label),
+             linetype = "dashed", linewidth = 1) +
+  geom_text(
+    data = milestones,
+    aes(x = date, y = max(ca_total$Cases) * 1.05, label = label),
+    size = 2.5,
+    fontface = "bold",
+    nudge_x = -15
+  ) +
+  scale_color_manual(values = c(
+    "SAH Order" = "darkred",
+    "EUA" = "blue",
+    "+6 weeks" = "green",
+    "Delta" = "purple",
+    "Omicron" = "orange"
+  )) +
+  guides(color = "none")
+
+# 2nd graph with Top 3 Counties
+plot_top_3 <- ggplot(top_cities, aes(x = Date, y = Cases, color = Admin2)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Top 3 California Counties by Confirmed Cases",
+    x = "Date",
+    y = "Cases",
+    color = "County"  # Renames the legend title from 'Admin2' to 'County'
+  ) +
+  theme_minimal() +
+  geom_vline(data = milestones, aes(xintercept = date), linetype = "dashed", color = "red") +
+  geom_text(
+    data = milestones,
+    aes(x = date, label = label),
+    y = Inf,
+    angle = 90,
+    vjust = -0.5,
+    hjust = 0,
+    inherit.aes = FALSE
+  )
+
+plot_grid(plot_ca, plot_top_3, ncol = 1)
 ```
-
 ### Objective 4: Exploring Relationship between -  Population & Confirmed Counts, Death Counts & Confirmed Counts
-
-
 ```{r ob4}
+library(dplyr)
+library(ggplot2)
+library(cowplot)
+library(scales)
 
+# Filter California to get Confirmed and Deaths
+confirmed_ca <- confirmed_us_data %>%
+  filter(Province_State == "California")
+
+deaths_ca <- deaths_us_data %>%
+  filter(Province_State == "California")
+
+latest_date <- names(confirmed_ca)[ncol(confirmed_ca)]
+
+# Popualtion for California counties from 2020 Census
+ca_pop <- tibble::tribble(
+  ~Admin2, ~Population,
+  "Los Angeles", 10039107,
+  "San Diego", 3338330,
+  "Orange", 3175692,
+  "Riverside", 2470546,
+  "San Bernardino", 2180085,
+  "Santa Clara", 1927852,
+  "Alameda", 1671329,
+  "Sacramento", 1552058,
+  "Contra Costa", 1153526,
+  "Fresno", 999101,
+  "Kern", 900202,
+  "San Francisco", 881549,
+  "Ventura", 846006,
+  "San Mateo", 766573,
+  "San Joaquin", 762148,
+  "Stanislaus", 550660,
+  "Sonoma", 494336,
+  "Tulare", 466195,
+  "Solano", 447643,
+  "Santa Barbara", 446499,
+  "Monterey", 434061,
+  "Placer", 404739,
+  "San Luis Obispo", 283111,
+  "Santa Cruz", 273213,
+  "Merced", 277680,
+  "Marin", 258826,
+  "Butte", 219186,
+  "Yolo", 220500,
+  "El Dorado", 192843,
+  "Shasta", 180080,
+  "Imperial", 181215,
+  "Madera", 157327,
+  "Kings", 152940,
+  "Napa", 137744,
+  "Humboldt", 135558,
+  "Nevada", 99755,
+  "Sutter", 99424,
+  "Mendocino", 86749,
+  "Yuba", 78668,
+  "Lake", 64386,
+  "San Benito", 62808,
+  "Tuolumne", 54478,
+  "Calaveras", 45905,
+  "Siskiyou", 43539,
+  "Amador", 39752,
+  "Lassen", 30573,
+  "Glenn", 28917,
+  "Del Norte", 27812,
+  "Colusa", 21547,
+  "Plumas", 18807,
+  "Tehama", 65357,
+  "Mariposa", 17203,
+  "Inyo", 18039,
+  "Trinity", 12285,
+  "Mono", 14444,
+  "Modoc", 8841,
+  "Sierra", 3005,
+  "Alpine", 1129
+)
+
+# Merge population data with confirmed and deaths
+confirmed_ca <- left_join(confirmed_ca, ca_pop, by = "Admin2")
+deaths_ca <- left_join(deaths_ca, ca_pop, by = "Admin2")
+
+# Combine the data so there is one dataset for California containing deaths, confirmations, population
+covid_summary <- confirmed_ca %>%
+  select(Admin2, Population, !!latest_date) %>%
+  rename(Confirmed = !!latest_date) %>%
+  left_join(
+    deaths_ca %>%
+      select(Admin2, !!latest_date) %>%
+      rename(Deaths = !!latest_date),
+    by = "Admin2"
+  ) %>%
+  filter(Population > 0, Confirmed > 0, Deaths > 0) %>%
+  mutate(
+    log_Population = log10(Population),
+    log_Confirmed = log10(Confirmed),
+    log_Deaths = log10(Deaths)
+  )
+
+# Plot 1 - Confirmations vs Population
+plot1 <- ggplot(covid_summary, aes(x = log_Population, y = log_Confirmed)) +
+  geom_point(color = "steelblue") +
+  labs(
+    title = "Confirmations vs Population",
+    x = "Population",
+    y = "Confirmed Cases"
+  ) +
+  scale_x_continuous(labels = function(x) scales::comma(10^x)) +
+  scale_y_continuous(labels = function(x) scales::comma(10^x)) +
+  theme_gray(base_size = 13)
+
+# Plot 2 - Deaths vs Confirmations
+plot2 <- ggplot(covid_summary, aes(x = log_Confirmed, y = log_Deaths)) +
+  geom_point(color = "firebrick") +
+  labs(
+    title = "Deaths vs Confirmed Cases",
+    x = "Confirmed Cases",
+    y = "Deaths"
+  ) +
+  scale_x_continuous(labels = function(x) scales::comma(10^x)) +
+  scale_y_continuous(labels = function(x) scales::comma(10^x)) +
+  theme_gray(base_size = 13)
+
+# Display both plots together using cowplot
+plot_grid(plot1, plot2, ncol = 2)
 ```
-
 
 ### GitHub Log
 ```{bash gitlog } 
 git log --pretty=format:"%nSubject: %s%nAuthor: %aN%nDate: %aD%nBody: %b"
 ```
 [GitHub repository] 
-
 

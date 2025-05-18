@@ -89,18 +89,18 @@ deaths_global_cleaned <- deaths_global_cleaned %>%
 ### Objective 1: Global Map - Covid-19 Confirmations & Deaths
 ```{r ob1}
 # Identify the column with last date
-last_date <- names(confirmed_global_cleaned)[ncol(confirmed_global_cleaned)]
+date_last <- names(confirmed_global_cleaned)[ncol(confirmed_global_cleaned)]
 
 # Sum confirmations and deaths of provinces into one value for each country they belong to 
 confirmed_global_summed <- confirmed_global_cleaned %>% 
   group_by(Country.Region) %>% 
-  summarise(confirmed = sum(.data[[last_date]], na.rm = TRUE),
+  summarise(confirmed = sum(.data[[date_last]], na.rm = TRUE),
             Lat = mean(Lat, na.rm = TRUE),
             Long = mean(Long, na.rm = TRUE))
             
 deaths_global_summed <- deaths_global_cleaned %>% 
   group_by(Country.Region) %>% 
-  summarise(deaths = sum(.data[[last_date]], na.rm = TRUE))
+  summarise(deaths = sum(.data[[date_last]], na.rm = TRUE))
 
 # Join confirmed and deaths data frames
 global_joined <- left_join(confirmed_global_summed, deaths_global_summed, by = "Country.Region")
@@ -112,31 +112,30 @@ quartiles_deaths <- quantile(global_joined$deaths, probs = c(0.25,0.5,0.75), na.
 # Set colors for quartiles
 global_joined  <- global_joined %>% 
   mutate(
-    Color_confirmed = case_when(
+    conf_color = case_when(
     confirmed <= quartiles_confirmed[1] ~ "blue",
     confirmed <= quartiles_confirmed[2] ~"gray",
     confirmed <= quartiles_confirmed[3] ~ "red",
-    TRUE ~ "red"
     ),
-    Color_deaths = case_when(
+    deaths_color = case_when(
       deaths <= quartiles_deaths[1] ~ "blue",
       deaths <= quartiles_deaths[2] ~"gray",
       deaths <= quartiles_deaths[3] ~ "red",
-      TRUE ~ "red"
     )
   )
 
 # Make map using leaflet
 leaflet(global_joined) %>% 
-  addProviderTiles(providers$CartoDB.Positron, group = "Base Map") %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>% 
   
   # Add layer for confirmed cases
   addCircleMarkers(
     data = global_joined,
     group = "confirmed",
-    lng =~ Long, lat = ~Lat,
+    lng =~ Long,
+    lat = ~Lat,
     radius = ~log1p(confirmed)/2,
-    color = ~Color_confirmed,
+    color = ~conf_color,
     label = ~`Country.Region`,
     popup = ~paste0("<b>Country:</b> ", `Country.Region`, "<br>",
                    "<br><b>Confirmations:</b> ", confirmed,
@@ -150,7 +149,7 @@ leaflet(global_joined) %>%
     group = "deaths",
     lng = ~Long, lat = ~Lat,
     radius = ~log1p(deaths)/2,
-    color = ~Color_deaths,
+    color = ~deaths_color,
     label = ~`Country.Region`,
     popup = ~paste0("<b>Country:</b> ", `Country.Region`, "<br>",
                    "<b>Deaths:</b> ", deaths),
@@ -164,16 +163,16 @@ leaflet(global_joined) %>%
   ) %>% 
   hideGroup("deaths")
 ```
-### Objective 2: Table with Top 25 Countries by Confirmations and Deaths
+### Objective 2: Table with Top 25 Countries with Highest Number of  Confirmed Cases and Deaths
 ```{r ob2}
-# Identify top 25 countries for confirmations
-confirmed_top <- global_joined %>% 
+# Identify top 25 countries with highest number of confirmed cases
+confirmed_top25 <- global_joined %>% 
   arrange(desc(confirmed)) %>% 
   slice(1:25) %>% 
   select(Country = `Country.Region`, Count = confirmed)
 
-# Identify top 25 countries for deaths
-deaths_top <- global_joined %>% 
+# Identify top 25 countries with highest number of deaths
+deaths_top25 <- global_joined %>% 
   arrange(desc(deaths)) %>% 
   slice(1:25) %>% 
   select(Country = `Country.Region`, Count = deaths)
@@ -181,10 +180,10 @@ deaths_top <- global_joined %>%
 # Combine confirmed_top and deaths_top tables and add new column for rank number
 table_ranked <- tibble(
   Rank = 1:25,
-  country_confirmed = confirmed_top$Country,
-  country_count = confirmed_top$Count,
-  country_deaths = deaths_top$Country,
-  count_deaths = deaths_top$Count
+  country_confirmed = confirmed_top25$Country,
+  country_count = confirmed_top25$Count,
+  country_deaths = deaths_top25$Country,
+  count_deaths = deaths_top25$Count
 )
 
 # Rename columns for table_ranked table
@@ -195,7 +194,7 @@ table_ranked %>%
   kable(caption = "Top 25 Countries by Confirmed Cases and Deaths",
         col.names = c("Rank", "Country", "Count", "Country", "Count")) %>% 
   kableExtra::add_header_above(c(" " = 1, "Confirmations" = 2, "Deaths" = 2)) %>% 
-  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+  kableExtra::kable_styling(bootstrap_options = c("condensed"))
   
 ```
 
